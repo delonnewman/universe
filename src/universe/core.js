@@ -19,6 +19,14 @@ universe.core = (function() {
         return Object.prototype.toString.call(x) === '[object Function]';
     }
 
+    function isDocument(obj) {
+        return !!(obj && obj.nodeType === 9);
+    }
+
+    function isElement(obj) {
+        return !!(obj && obj.nodeType === 1);
+    }
+
     function isArrayLike(x) {
         return x != null && isNumber(x.length);
     }
@@ -53,6 +61,14 @@ universe.core = (function() {
 
     function exists(x) {
         return x != null;
+    }
+
+    function isPresent(x) {
+        return x != null && x != '';
+    }
+
+    function isBlank(x) {
+        return x == null || x == '';
     }
 
     // TODO: add support for maps, sets, and objects
@@ -275,6 +291,14 @@ universe.core = (function() {
         }
     }
 
+    function add1(x) {
+        return x + 1;
+    }
+
+    function sub1(x) {
+        return x - 1;
+    }
+
     function apply(f, args, ctx) {
         if (arguments.length === 1) {
             return function(args, ctx) {
@@ -338,6 +362,25 @@ universe.core = (function() {
         };
     }
 
+    function printStr(x) {
+        if (isNumber(x) || isBoolean(x)) {
+            return str(x);
+        }
+        else if (isString(x)) {
+            return JSON.stringify(x);   
+        }
+        else if (isArray(x)) {
+            // TODO: make an iterative version of this
+            return str('[', map(printStr, x).join(', '), ']');
+        }
+        else if (isFunction(x.toString)) {
+            return x.toString();
+        }
+        else {
+            throw new Error("Don't know how to print the given value");
+        }
+    }
+
     function isObjectLiteral(x) {
         return isObject(x) && Object.getPrototypeOf(Object.getPrototypeOf(x)) == null;
     }
@@ -364,7 +407,7 @@ universe.core = (function() {
         }
 
         function renderAttrs(attrs) {
-            return map(renderAttr, Object.entries(attrs)).join(', ');
+            return map(renderAttr, Object.entries(attrs)).join(' ');
         }
 
         function renderTag(form) {
@@ -378,7 +421,7 @@ universe.core = (function() {
                     return head;
                 }
                 else {
-                    return str(head, map(html, rest(body)), "</", tag, ">");
+                    return str(head, map(html, rest(body)).join(''), "</", tag, ">");
                 }
             }
             else {
@@ -387,7 +430,7 @@ universe.core = (function() {
                     return head;
                 }
                 else {
-                    return str(head, map(html, rest(body)), "</", tag, ">");
+                    return str(head, map(html, body).join(''), "</", tag, ">");
                 }
             }
         }
@@ -405,7 +448,7 @@ universe.core = (function() {
             html.components[name] = comp;
             return '';
         }
-    
+
         var html = function(form) {
             if (isString(form) && !isUndefined(html.components[form])) {
                 return html.components[form].value;
@@ -444,9 +487,25 @@ universe.core = (function() {
             }
         };
         html.components = {};
+
+        // (see https://developer.mozilla.org/en-US/docs/Glossary/empty_element)
         html.singletons = {
             img: true,
-            link: true
+            link: true,
+            br: true,
+            area: true,
+            base: true,
+            col: true,
+            embed: true,
+            hr: true,
+            img: true,
+            input: true,
+            keygen: true,
+            meta: true,
+            param: true,
+            source: true,
+            track: true,
+            wbr: true
         };
 
         html(['define', {name: "!!!", doc: "A doctype tag"}, "<!DOCTYPE html>"]);
@@ -457,10 +516,10 @@ universe.core = (function() {
     }();
 
     function renderTo(elem, s) {
-        if (elem instanceof Document) {
+        if (isDocument(elem)) {
             elem.write(s);
         }
-        else if (elem instanceof Element) {
+        else if (isElement(elem)) {
             elem.innerHTML = s;
         }
         else if (isString(elem)) {
@@ -471,10 +530,10 @@ universe.core = (function() {
     }
 
     function appendTo(elem, s) {
-        if (elem instanceof Document) {
+        if (isDocument(elem)) {
             elem.write(s);
         }
-        else if (elem instanceof Element) {
+        else if (isElement(elem)) {
             elem.innerHTML = str(elem.innerHTML, s);
         }
         else if (isString(elem)) {
@@ -482,13 +541,16 @@ universe.core = (function() {
                 e.innerHTML = str(e.innerHTML, s);
             });
         }
+        else {
+            throw new Error("Don't know how to append this value: " + elem);
+        }
     }
     
     function prependTo(elem, s) {
-        if (elem instanceof Document) {
+        if (isDocument(elem)) {
             elem.write(s);
         }
-        else if (elem instanceof Element) {
+        else if (isElement(elem)) {
             elem.innerHTML = str(s, elem.innerHTML);
         }
         else if (isString(elem)) {
@@ -509,6 +571,8 @@ universe.core = (function() {
         isUndefined,
         isObject,
         isObjectLiteral,
+        isPresent,
+        isBlank,
         exists,
         toArray,
         first,
@@ -532,7 +596,8 @@ universe.core = (function() {
         either,
         maybe,
         raise,
-        print
+        print,
+        printStr,
     };
 
 }());
